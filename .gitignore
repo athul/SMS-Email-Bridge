@@ -2,4 +2,6 @@ venv/
 __pycache__/
 .ropeproject/
 .deta/
+
+
 .env
