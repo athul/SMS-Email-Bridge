@@ -2,28 +2,34 @@ import os
 from dotenv import load_dotenv
 import re
 from fastapi import FastAPI, Form
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
-from twilio.rest import Client
+import httpx
 
 app = FastAPI()
 load_dotenv()
+print("Env Loaded")
+client = httpx.AsyncClient()
 
+async def sendEmail(to: str, subject: str, body: str) -> int:
+    print("Ivide ⚡️")
+    token_header = f"Bearer {os.getenv('SENDGRID_API_KEY')}"
+    headers = {
+        'authorization': token_header,
+        'content-type': "application/json"
+    }
+    req = {
+        "personalizations": 
+        [{"to": [{"email": to}]}],
+        "from": {"email": os.getenv(
+        'FROM_EMAIL')}, 
+        "subject": subject, 
+        "content": [{"type": "text/plain", "value": body}]
+        }
 
-async def sendEmail(to: str, subject: str, body: str) -> str:
-    message = Mail(
-        from_email=os.getenv("FROM_EMAIL"),
-        subject=subject,
-        to_emails=to,
-        plain_text_content=body
-    )
-    try:
-        sg = SendGridAPIClient()
-        resp = sg.send(message)
-        return str(resp.status_code)
-    except Exception as exc:
-        print(f"Could not send email to {to} due {str(exc)}")
-        return str(exc)
+    async with httpx.AsyncClient() as client:
+        resp = await client.post("https://api.sendgrid.com/v3/mail/send", json=req, headers=headers)
+
+    print("Email 😅")
+    return resp.status_code
 
 
 @app.post("/hook")
@@ -38,13 +44,22 @@ async def process_sms(From: str = Form(...), Body: str = Form(...)):
     subject = match.group(2)
     email_body = match.group(3).replace("'", "")
     email_res = await sendEmail(to=to_email, subject=subject, body=email_body)
-    if email_res == "202":
-        client = Client()
-        message = client.messages.create(
-            to=From,
-            body=f"Email to {to_email} is Sent",
-            from_=os.getenv("TWILIO_PHONE_NUMBER")
-        )
-        return {"message": f"Successfully Sent Message to {From}"}
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{os.getenv('TWILIO_ACCOUNT_SID')}/Messages.json"
+    auth = (os.getenv('TWILIO_ACCOUNT_SID'), os.getenv('TWILIO_AUTH_TOKEN'))
+    if email_res == 202:
+        print("Email Sent")
+        payload = {
+            "Body": f"Email to {to_email} is Sent",
+            "From": os.getenv('TWILIO_PHONE_NUMBER'),
+            "To": From
+        }
+        response = await client.post(url, data=payload, auth=auth)
+        return {"message": f"Successfully Sent SMS to {From}"}
     else:
+        payload = {
+            "Body": f"Email to {to_email} was unsuccessfull",
+            "From": os.getenv('TWILIO_PHONE_NUMBER'),
+            "To": From
+        }
+        response = await client.post(url, data=payload, auth=auth)
         return {"error": f"Unsuccessful due to {email_res}"}
