@@ -3,5 +3,5 @@ __pycache__/
 .ropeproject/
 .deta/
 
-
+pythonenv3.8/
 .env
