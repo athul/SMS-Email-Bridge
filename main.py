@@ -55,7 +55,7 @@ async def process_sms(From: str = Form(...), Body: str = Form(...)) -> Dict:
         return {"message": f"Successfully Sent SMS to {From}"}
     else:
         payload = {
-            "Body": f"Email to {to_email} was unsuccessfull",
+            "Body": f"Email to {to_email} was unsuccessful",
             "From": os.getenv('TWILIO_PHONE_NUMBER'),
             "To": From
         }
