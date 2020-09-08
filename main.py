@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form , Response
 import httpx
 from twilio.twiml.messaging_response import MessagingResponse
 
@@ -44,6 +44,9 @@ async def process_sms(From: str = Form(...), Body: str = Form(...)) -> str:
     # return resp.status_code
     msgresp = MessagingResponse()
     if resp.status_code == 202:
-        resp.message("Thank You, your SMS has been received")
+        msgresp.message("Thank You, your SMS has been received")
+        print(resp)
+        return Response(content=str(msgresp),media_type="application/xml")
     else:
-        print("SMS forwarding was unsuccessfull")
+        msgresp.message("SMS has not been forwarded")
+        return Response(content=str(msgresp),media_type="application/xml")
